@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- UC Davis brand colors, used by the launcher icon. -->
+    <color name="aggie_blue">#FF022851</color>
+    <color name="aggie_gold">#FFFFBF00</color>
+</resources>
