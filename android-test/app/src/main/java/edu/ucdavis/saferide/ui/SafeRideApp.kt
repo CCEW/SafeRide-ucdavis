@@ -1,6 +1,8 @@
 package edu.ucdavis.saferide.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -9,9 +11,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import edu.ucdavis.saferide.data.DeviceLocationProvider
 import edu.ucdavis.saferide.ui.home.FullMapScreen
 import edu.ucdavis.saferide.ui.home.MainScreen
 import edu.ucdavis.saferide.ui.places.ExploreScreen
@@ -31,6 +38,18 @@ import edu.ucdavis.saferide.ui.welcome.WelcomeScreen
 @Composable
 fun SafeRideApp(viewModel: SafeRideViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Ask for location once, when the rider first reaches Home, so "Where are you?" can pre-fill their position.
+    var askedForLocation by rememberSaveable { mutableStateOf(false) }
+    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        viewModel.refreshMyLocation()
+    }
+    LaunchedEffect(state.screen) {
+        if (state.screen == Screen.Main && !askedForLocation) {
+            askedForLocation = true
+            locationPermission.launch(DeviceLocationProvider.PERMISSIONS)
+        }
+    }
 
     BackHandler(enabled = state.backStack.size > 1) { viewModel.back() }
     BackHandler(enabled = state.screen == Screen.Main && state.tab == MainTab.SETTINGS) {
@@ -62,12 +81,12 @@ fun SafeRideApp(viewModel: SafeRideViewModel) {
             Screen.Main -> MainScreen(
                 state = state,
                 onSelectTab = viewModel::selectTab,
-                onWhereTo = viewModel::openWhereTo,
+                onRequestRide = viewModel::openWhereTo,
                 onExpandMap = viewModel::openFullMap,
                 onSignOut = viewModel::signOut,
             )
 
-            Screen.FullMap -> FullMapScreen(state.campusStatus, onClose = { viewModel.back() })
+            Screen.FullMap -> FullMapScreen(state.campusStatus, state.myLocation, onClose = { viewModel.back() })
 
             Screen.WhereTo -> PlaceSearchScreen(
                 mode = PlaceSearchMode.DESTINATION,
@@ -76,15 +95,18 @@ fun SafeRideApp(viewModel: SafeRideViewModel) {
                 onPlace = viewModel::chooseDestination,
                 onExplore = { viewModel.openExplore(it, forPickup = false) },
                 onSetOnMap = {},
+                onUseCurrentLocation = {},
             )
 
             Screen.WhereAreYou -> PlaceSearchScreen(
                 mode = PlaceSearchMode.PICKUP,
                 recentPlaces = state.recentPlaces,
+                currentLocation = state.myLocation,
                 onBack = { viewModel.back() },
                 onPlace = viewModel::choosePickupPlace,
                 onExplore = { viewModel.openExplore(it, forPickup = true) },
                 onSetOnMap = viewModel::openSetOnMap,
+                onUseCurrentLocation = viewModel::useCurrentLocation,
             )
 
             is Screen.Explore -> ExploreScreen(
@@ -95,6 +117,7 @@ fun SafeRideApp(viewModel: SafeRideViewModel) {
 
             Screen.SetOnMap -> SetOnMapScreen(
                 status = state.campusStatus,
+                myLocation = state.myLocation,
                 onBack = { viewModel.back() },
                 onConfirm = viewModel::confirmMapPin,
             )

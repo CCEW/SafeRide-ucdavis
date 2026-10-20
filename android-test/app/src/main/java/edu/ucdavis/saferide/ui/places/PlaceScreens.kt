@@ -17,21 +17,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import edu.ucdavis.saferide.R
 import edu.ucdavis.saferide.data.CampusLocation
 import edu.ucdavis.saferide.data.CampusLocations
+import edu.ucdavis.saferide.data.LatLng
 import edu.ucdavis.saferide.data.PlaceCategory
+import edu.ucdavis.saferide.domain.TripRules
 import edu.ucdavis.saferide.ui.components.BlueHeader
 import edu.ucdavis.saferide.ui.components.IconCircle
 import edu.ucdavis.saferide.ui.components.ListRow
@@ -45,7 +53,13 @@ enum class PlaceSearchMode(val title: String, val placeholder: String) {
     PICKUP("Where are you?", "Type or select a pickup location"),
 }
 
-/** "Where to?" and "Where are you?": search, recent places, and explore lists. */
+/** What "Where are you?" is pre-filled with. Pressing Enter books from the rider's GPS position. */
+private const val CURRENT_LOCATION = "Current Location"
+
+/**
+ * "Where to?" and "Where are you?": search, recent places, and explore lists.
+ * "Where are you?" starts filled in with the rider's current location, selected so typing replaces it.
+ */
 @Composable
 fun PlaceSearchScreen(
     mode: PlaceSearchMode,
@@ -54,15 +68,37 @@ fun PlaceSearchScreen(
     onPlace: (CampusLocation) -> Unit,
     onExplore: (PlaceCategory) -> Unit,
     onSetOnMap: () -> Unit,
+    onUseCurrentLocation: () -> Unit,
+    /** The rider's GPS position; null until there's a fix. */
+    currentLocation: LatLng? = null,
 ) {
-    var query by rememberSaveable(mode) { mutableStateOf("") }
+    val prefill = if (mode == PlaceSearchMode.PICKUP) CURRENT_LOCATION else ""
+    var field by rememberSaveable(mode, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(prefill, selection = TextRange(0, prefill.length)))
+    }
+    val usingCurrent = mode == PlaceSearchMode.PICKUP && field.text == CURRENT_LOCATION
+    val query = if (usingCurrent) "" else field.text.trim()
+    val matches = if (query.isEmpty()) emptyList() else CampusLocations.all.filter { it.name.contains(query, ignoreCase = true) }
+
+    // Open the keyboard on "Where are you?" so confirming the pre-filled location is a single Enter.
+    val focus = remember { FocusRequester() }
+    if (mode == PlaceSearchMode.PICKUP) {
+        LaunchedEffect(Unit) { focus.requestFocus() }
+    }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         BlueHeader(mode.title, onBack = onBack) {
             SearchField(
-                value = query,
-                onValueChange = { query = it },
+                value = field,
+                onValueChange = { field = it },
                 placeholder = mode.placeholder,
+                onDone = {
+                    when {
+                        usingCurrent -> onUseCurrentLocation()
+                        matches.isNotEmpty() -> onPlace(matches.first())
+                    }
+                },
+                fieldModifier = Modifier.focusRequester(focus),
                 leading = {
                     if (mode == PlaceSearchMode.DESTINATION) {
                         Icon(painterResource(R.drawable.ic_pickup), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -75,12 +111,11 @@ fun PlaceSearchScreen(
         }
 
         LazyColumn(Modifier.fillMaxSize()) {
-            if (query.isNotBlank()) {
-                val matches = CampusLocations.all.filter { it.name.contains(query.trim(), ignoreCase = true) }
+            if (query.isNotEmpty()) {
                 if (matches.isEmpty()) {
                     item {
                         Text(
-                            "No SafeRide locations match \"${query.trim()}\".",
+                            "No SafeRide locations match \"$query\".",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp),
                         )
@@ -100,14 +135,23 @@ fun PlaceSearchScreen(
             if (mode == PlaceSearchMode.PICKUP) {
                 item {
                     Surface(shadowElevation = 3.dp, color = MaterialTheme.colorScheme.surface) {
-                        ListRow(
-                            title = "Current Location",
-                            subtitle = "Set on Map",
-                            onClick = onSetOnMap,
-                            leading = { IconCircle(R.drawable.ic_navigation) },
-                            showChevron = true,
-                            showDivider = false,
-                        )
+                        Column {
+                            ListRow(
+                                title = CURRENT_LOCATION,
+                                subtitle = currentLocationHint(currentLocation),
+                                onClick = onUseCurrentLocation,
+                                leading = { IconCircle(R.drawable.ic_navigation) },
+                                showChevron = true,
+                            )
+                            ListRow(
+                                title = "Set on Map",
+                                subtitle = "Move the map to your exact spot",
+                                onClick = onSetOnMap,
+                                leading = { IconCircle(R.drawable.ic_pickup) },
+                                showChevron = true,
+                                showDivider = false,
+                            )
+                        }
                     }
                 }
             }
@@ -176,4 +220,11 @@ private fun CategoryBadge(category: PlaceCategory) {
         PlaceCategory.HOUSING -> IconCircle(R.drawable.ic_pickup, background = GoldDark, tint = Color.White)
         PlaceCategory.CAMPUS -> IconCircle(R.drawable.ic_school, background = AggieBlue, tint = Color.White)
     }
+}
+
+/** Where the van will meet a rider at [position], so they know what Enter will book. */
+private fun currentLocationHint(position: LatLng?): String? = when {
+    position == null -> null
+    TripRules.isOnCampus(position) -> "Van meets you at ${TripRules.pickupSpotFor(position).stopName}"
+    else -> "You're off campus. Rides must start on campus."
 }

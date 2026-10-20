@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -134,7 +132,7 @@ fun TrackingScreen(
             enter = slideInVertically { -it } + fadeIn(),
             modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp),
         ) {
-            ArrivalBanner(ride)
+            ArrivalBanner()
         }
 
         Surface(
@@ -158,43 +156,16 @@ fun TrackingScreen(
     }
 }
 
-/** The prominent "Driver Arrived" alert: van, license plate, and the exact stop. */
+/** The prominent "Driver Arrived" alert. Van and stop details stay in the sheet below. */
 @Composable
-private fun ArrivalBanner(ride: RideRequest) {
-    val van = ride.assignedVehicle ?: return
+private fun ArrivalBanner() {
     Surface(color = ArrivedGreen, shape = RoundedCornerShape(18.dp), shadowElevation = 10.dp, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconCircle(R.drawable.ic_check, background = Color.White, tint = ArrivedGreen, size = 36.dp)
-                Spacer(Modifier.width(12.dp))
-                Text("Driver Arrived", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(StatusText.queueCard(ride), color = Color.White, fontSize = 18.sp, lineHeight = 24.sp)
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("License plate", color = Color.White.copy(alpha = 0.85f), fontSize = 15.sp)
-                Spacer(Modifier.width(12.dp))
-                LicensePlate(van.licensePlate)
-            }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(18.dp)) {
+            IconCircle(R.drawable.ic_check, background = Color.White, tint = ArrivedGreen, size = 36.dp)
+            Spacer(Modifier.width(12.dp))
+            Text("Driver Arrived", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
     }
-}
-
-@Composable
-private fun LicensePlate(plate: String) {
-    Text(
-        plate,
-        color = AggieBlue,
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.Bold,
-        fontSize = 20.sp,
-        letterSpacing = 2.sp,
-        modifier = Modifier
-            .background(Color.White, RoundedCornerShape(6.dp))
-            .border(2.dp, AggieBlue, RoundedCornerShape(6.dp))
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-    )
 }
 
 @Composable
@@ -222,18 +193,20 @@ private fun RideSheet(ride: RideRequest, status: CampusStatus?, onBoard: () -> U
                     Text(subline(ride, status), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Spacer(Modifier.height(14.dp))
-            // The live queue card text from the spec.
-            Text(
-                StatusText.queueCard(ride),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-            )
+            // Only during the ride itself; while waiting, the headline already says the place in line or the van's status.
+            if (ride.status == RideStatus.ON_BOARD) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    StatusText.queueCard(ride),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                )
+            }
             Spacer(Modifier.height(16.dp))
             Stepper(ride.status)
             Spacer(Modifier.height(16.dp))

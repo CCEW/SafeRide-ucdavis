@@ -146,6 +146,29 @@ class MockSafeRideServiceTest {
     }
 
     @Test
+    fun kemperAndMemorialUnionToTheU_driveTheStoredRoadPaths() = runTest {
+        val trips = listOf(
+            CampusLocations.kemperHall to (RoadRoutes.vanToKemper to RoadRoutes.kemperToTheU),
+            CampusLocations.memorialUnion to (RoadRoutes.vanToMemorialUnion to RoadRoutes.memorialUnionToTheU),
+        )
+        for ((pickup, paths) in trips) {
+            val (toPickup, toDropoff) = paths
+            val ride = service.requestRide(pickup, CampusLocations.theUApartments)
+            val updates = service.startSimulatedQueueUpdates(ride).toList()
+
+            // The van drives the road path to the pickup, not the L-shaped fallback.
+            assertEquals(toPickup, updates.first { it.status == RideStatus.ASSIGNED }.route)
+            assertEquals(RideStatus.ARRIVED, updates.last().status)
+
+            // Then the road path to The U, ending at its front gate.
+            val trip = service.startSimulatedTrip(updates.last()).toList()
+            assertEquals(toDropoff, trip.first().route)
+            assertEquals(CampusLocations.theUApartments.position, trip.last().assignedVehicle!!.position)
+            assertEquals(RideStatus.COMPLETED, trip.last().status)
+        }
+    }
+
+    @Test
     fun queueEstimate_onlyDropsAsTheRiderMovesUp() {
         assertEquals("Estimated pickup ~12 mins", StatusText.queueEstimate(3, 12))
         assertEquals("Estimated pickup ~8 mins", StatusText.queueEstimate(2, 12))

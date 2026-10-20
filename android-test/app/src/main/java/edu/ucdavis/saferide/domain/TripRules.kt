@@ -10,7 +10,7 @@ object TripRules {
 
     const val MAX_PASSENGERS = 6
 
-    /** How close to the simulated GPS position still counts as "Current Location". */
+    /** How close to the rider's position still counts as "Current Location". */
     private const val CURRENT_LOCATION_TOLERANCE_METERS = 15.0
 
     const val OFF_CAMPUS_PICKUP_MESSAGE =
@@ -43,9 +43,9 @@ object TripRules {
             .minBy { Geo.distanceMeters(it.position, position) }
     }
 
-    /** Label for a start point chosen on the map. */
-    fun startLabelFor(position: LatLng): String {
-        if (Geo.distanceMeters(position, CampusLocations.simulatedCurrentLocation) <= CURRENT_LOCATION_TOLERANCE_METERS) {
+    /** Label for a start point chosen on the map, given the rider's GPS position ([current], null without a fix). */
+    fun startLabelFor(position: LatLng, current: LatLng?): String {
+        if (current != null && Geo.distanceMeters(position, current) <= CURRENT_LOCATION_TOLERANCE_METERS) {
             return "Current Location"
         }
         val nearest = CampusLocations.all.minBy { Geo.distanceMeters(it.position, position) }

@@ -2,6 +2,7 @@ package edu.ucdavis.saferide.ui
 
 import edu.ucdavis.saferide.data.CampusLocations
 import edu.ucdavis.saferide.data.LatLng
+import edu.ucdavis.saferide.data.LocationProvider
 import edu.ucdavis.saferide.data.MockSafeRideService
 import edu.ucdavis.saferide.data.PlaceCategory
 import edu.ucdavis.saferide.data.RideStatus
@@ -126,6 +127,7 @@ class SafeRideViewModelTest {
     @Test
     fun mapPinNearCurrentLocationWalksToNearestStop() = runTest(dispatcher) {
         val vm = SafeRideViewModel(MockSafeRideService())
+        advanceUntilIdle() // GPS fix
         vm.openWhereTo()
         vm.chooseDestination(CampusLocations.westVillage)
         vm.openSetOnMap()
@@ -134,6 +136,42 @@ class SafeRideViewModelTest {
         assertEquals("Current Location", trip.start?.label)
         assertEquals(CampusLocations.hartHall, trip.pickupSpot)
         assertEquals(Screen.Passengers, vm.screen)
+    }
+
+    @Test
+    fun currentLocationUsesTheGpsFix_andPicksTheNearestStop() = runTest(dispatcher) {
+        // Standing outside Shields Library.
+        val gps = LatLng(38.53965, -121.74970)
+        val vm = SafeRideViewModel(MockSafeRideService(), locationProvider = FixedLocation(gps))
+        advanceUntilIdle()
+        assertEquals(gps, vm.state.value.myLocation)
+
+        vm.openWhereTo()
+        advanceUntilIdle()
+        vm.chooseDestination(CampusLocations.westVillage)
+        vm.useCurrentLocation()
+        val trip = vm.state.value.trip
+        assertEquals("Current Location", trip.start?.label)
+        assertEquals(gps, trip.start?.position)
+        assertEquals(CampusLocations.shieldsLibrary, trip.pickupSpot)
+        assertEquals(Screen.Passengers, vm.screen)
+    }
+
+    @Test
+    fun noGpsFix_hasNoCurrentLocation_andCantBookFromIt() = runTest(dispatcher) {
+        val vm = SafeRideViewModel(MockSafeRideService(), locationProvider = FixedLocation(null))
+        advanceUntilIdle()
+        assertNull(vm.state.value.myLocation)
+        vm.openWhereTo()
+        vm.chooseDestination(CampusLocations.westVillage)
+        vm.useCurrentLocation()
+        advanceUntilIdle()
+        assertNull(vm.state.value.trip.pickupSpot)
+        assertEquals(Screen.WhereAreYou, vm.screen)
+    }
+
+    private class FixedLocation(private val position: LatLng?) : LocationProvider {
+        override suspend fun currentLocation(): LatLng? = position
     }
 
     @Test

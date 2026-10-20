@@ -49,10 +49,12 @@ import kotlin.math.roundToInt
 
 /** "Current Location / Set on Map": drag the map under a fixed pin to choose where you are. */
 @Composable
-fun SetOnMapScreen(status: CampusStatus?, onBack: () -> Unit, onConfirm: (LatLng) -> Unit) {
+fun SetOnMapScreen(status: CampusStatus?, myLocation: LatLng?, onBack: () -> Unit, onConfirm: (LatLng) -> Unit) {
     SystemBarIcons(darkIcons = !isSystemInDarkTheme())
-    var center by remember { mutableStateOf(CampusLocations.simulatedCurrentLocation) }
-    val camera = remember { MapCamera.Focus(CampusLocations.simulatedCurrentLocation, 17.0) }
+    // Start on the rider's GPS position, or on campus without a fix.
+    val start = myLocation ?: CampusLocations.campusCenter
+    var center by remember { mutableStateOf(start) }
+    val camera = remember { MapCamera.Focus(start, 17.0) }
 
     val onCampus = TripRules.isOnCampus(center)
     val spot = TripRules.pickupSpotFor(center)
@@ -63,7 +65,7 @@ fun SetOnMapScreen(status: CampusStatus?, onBack: () -> Unit, onConfirm: (LatLng
             CampusMap(
                 camera = camera,
                 vehicles = status?.vehicles.orEmpty(),
-                pins = listOf(MapPin("me", CampusLocations.simulatedCurrentLocation, PinKind.CURRENT)),
+                pins = listOfNotNull(myLocation?.let { MapPin("me", it, PinKind.CURRENT) }),
                 onCenterChanged = { center = it },
                 // At street zoom the gold fill would tint the whole map.
                 showServiceArea = false,
@@ -98,7 +100,7 @@ fun SetOnMapScreen(status: CampusStatus?, onBack: () -> Unit, onConfirm: (LatLng
                     IconCircle(if (onCampus) R.drawable.ic_walk else R.drawable.ic_warning, size = 40.dp)
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(TripRules.startLabelFor(center), fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text(TripRules.startLabelFor(center, myLocation), fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
                         Text(
                             if (onCampus) {
                                 "Pickup spot: ${spot.stopName} • ${walkMeters} m walk"

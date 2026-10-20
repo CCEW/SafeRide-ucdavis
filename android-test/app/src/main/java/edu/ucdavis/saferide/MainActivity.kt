@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
+import edu.ucdavis.saferide.data.DeviceLocationProvider
 import edu.ucdavis.saferide.ui.SafeRideApp
+import edu.ucdavis.saferide.ui.SafeRideViewModel
 import edu.ucdavis.saferide.ui.theme.SafeRideTheme
 
 class MainActivity : ComponentActivity() {
@@ -15,7 +17,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SafeRideTheme {
-                SafeRideApp(viewModel())
+                SafeRideApp(viewModel { SafeRideViewModel(locationProvider = DeviceLocationProvider(applicationContext)) })
             }
         }
     }

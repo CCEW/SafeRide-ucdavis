@@ -11,7 +11,7 @@ object CampusLocations {
 
     const val RIDER_NAME = "Alex (UC Davis Student)"
 
-    /** The emulator has no real GPS fix, so "Current Location" is a fixed spot on the Quad. */
+    /** A fixed spot on the Quad, used as the GPS position in unit tests (see SimulatedLocationProvider). */
     val simulatedCurrentLocation = LatLng(38.54020, -121.75080)
 
     const val SERVICE_HOURS =
@@ -21,12 +21,14 @@ object CampusLocations {
 
     // Campus locations (valid pickups)
     val shieldsLibrary = campus("shields", "Shields Library", "Shields Library Bus Turnaround", 38.53955, -121.74955)
-    val memorialUnion = campus("mu", "Memorial Union", "Memorial Union Bus Terminal", 38.54245, -121.74935)
+    // Memorial Union, Kemper Hall and The U Apartments sit on the curb where their RoadRoutes paths start and end.
+    val memorialUnion = campus("mu", "Memorial Union", "Memorial Union Bus Terminal", 38.544041, -121.749936)
     val silo = campus("silo", "Silo", "Silo Bus Terminal", 38.53875, -121.75335)
     val coho = campus("coho", "CoHo", "Memorial Union South Entrance (CoHo)", 38.54195, -121.74885)
     val arc = campus("arc", "ARC", "ARC Front Entrance on La Rue Rd", 38.54300, -121.75930)
     val hartHall = campus("hart", "Hart Hall", "Hart Hall on North Quad", 38.54060, -121.75050)
     val mondavi = campus("mondavi", "Mondavi Center", "Mondavi Center Drop-off Loop", 38.53480, -121.74910)
+    val kemperHall = campus("kemper", "Kemper Hall", "Curb south of Kemper Hall", 38.536127, -121.754999)
 
     // Parking lots (on campus, valid pickups)
     val pavilionStructure = parking("pavilion", "Pavilion Parking Structure", "Pavilion Structure Entrance on La Rue Rd", 38.54250, -121.75750)
@@ -37,9 +39,9 @@ object CampusLocations {
     // Off-campus housing (valid drop-offs only)
     val westVillage = housing("west_village", "West Village", "West Village Square", 38.54400, -121.77850)
     val solAtParkside = housing("sol_parkside", "Sol at Parkside", "Sol at Parkside Leasing Office", 38.55250, -121.72950)
-    val theUApartments = housing("the_u", "The U Apartments", "The U Apartments Front Gate", 38.55200, -121.76000)
+    val theUApartments = housing("the_u", "The U Apartments", "The U Apartments Front Gate", 38.549451, -121.720603)
 
-    val campus = listOf(shieldsLibrary, memorialUnion, silo, coho, arc, hartHall, mondavi)
+    val campus = listOf(shieldsLibrary, memorialUnion, silo, coho, arc, hartHall, mondavi, kemperHall)
     val parkingLots = listOf(pavilionStructure, quadStructure, lot5, lot47)
     val offCampusHousing = listOf(westVillage, solAtParkside, theUApartments)
     val all = campus + parkingLots + offCampusHousing

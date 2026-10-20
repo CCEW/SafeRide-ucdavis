@@ -6,12 +6,14 @@ import edu.ucdavis.saferide.data.CampusLocation
 import edu.ucdavis.saferide.data.CampusLocations
 import edu.ucdavis.saferide.data.CampusStatus
 import edu.ucdavis.saferide.data.LatLng
+import edu.ucdavis.saferide.data.LocationProvider
 import edu.ucdavis.saferide.data.MockSafeRideService
 import edu.ucdavis.saferide.data.PlaceCategory
 import edu.ucdavis.saferide.data.RideRequest
 import edu.ucdavis.saferide.data.RideStatus
 import edu.ucdavis.saferide.data.RideUnavailableException
 import edu.ucdavis.saferide.data.SafeRideService
+import edu.ucdavis.saferide.data.SimulatedLocationProvider
 import edu.ucdavis.saferide.data.StartLocation
 import edu.ucdavis.saferide.domain.NearestVan
 import edu.ucdavis.saferide.domain.TripRules
@@ -68,6 +70,8 @@ data class SafeRideUiState(
     val signingIn: Boolean = false,
     val requesting: Boolean = false,
     val activeRide: RideRequest? = null,
+    /** The rider's GPS position. Null until a fix arrives, or when location is off or not allowed. */
+    val myLocation: LatLng? = null,
 ) {
     val screen: Screen get() = backStack.last()
 
@@ -81,6 +85,7 @@ data class SafeRideUiState(
 
 class SafeRideViewModel(
     private val service: SafeRideService = MockSafeRideService.shared,
+    private val locationProvider: LocationProvider = SimulatedLocationProvider,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SafeRideUiState())
@@ -91,12 +96,21 @@ class SafeRideViewModel(
 
     init {
         refreshCampusStatus()
+        refreshMyLocation()
     }
 
     fun refreshCampusStatus() {
         viewModelScope.launch {
             val status = service.fetchCampusStatus()
             _state.update { it.copy(campusStatus = status) }
+        }
+    }
+
+    /** Reads the GPS again, e.g. after the rider grants location permission. Keeps the last position if there's no fix. */
+    fun refreshMyLocation() {
+        viewModelScope.launch {
+            val position = locationProvider.currentLocation() ?: return@launch
+            _state.update { it.copy(myLocation = position) }
         }
     }
 
@@ -153,9 +167,11 @@ class SafeRideViewModel(
 
     // region Booking flow
 
-    /** "Where to?" on the home screen starts a fresh trip. */
-    fun openWhereTo() = _state.update {
-        it.copy(trip = TripDraft(), backStack = listOf(Screen.Main, Screen.WhereTo))
+    /** "Request SafeRide" on the home screen starts a fresh trip. */
+    fun openWhereTo() {
+        _state.update { it.copy(trip = TripDraft(), backStack = listOf(Screen.Main, Screen.WhereTo)) }
+        // Fresh fix for the "Where are you?" pre-fill.
+        refreshMyLocation()
     }
 
     fun openExplore(category: PlaceCategory, forPickup: Boolean) = push(Screen.Explore(category, forPickup))
@@ -179,11 +195,20 @@ class SafeRideViewModel(
 
     fun openSetOnMap() = push(Screen.SetOnMap)
 
+    /**
+     * The pre-filled "Current Location" on "Where are you?": the van meets the rider at the nearest stop.
+     * Without a GPS fix there's nothing to book from, so this only tries the GPS again.
+     */
+    fun useCurrentLocation() {
+        val position = _state.value.myLocation ?: return refreshMyLocation()
+        confirmMapPin(position)
+    }
+
     /** Picking a spot on the map: the rider walks from there to the nearest campus stop. */
     fun confirmMapPin(position: LatLng) = _state.update {
         it.copy(
             trip = it.trip.copy(
-                start = StartLocation(TripRules.startLabelFor(position), position),
+                start = StartLocation(TripRules.startLabelFor(position, it.myLocation), position),
                 pickupSpot = TripRules.pickupSpotFor(position),
             ),
             backStack = it.backStack + Screen.Passengers,

@@ -13,13 +13,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,6 +36,7 @@ import edu.ucdavis.saferide.ui.MainTab
 import edu.ucdavis.saferide.ui.SafeRideUiState
 import edu.ucdavis.saferide.ui.components.IconCircle
 import edu.ucdavis.saferide.ui.components.ListRow
+import edu.ucdavis.saferide.ui.components.PrimaryButton
 import edu.ucdavis.saferide.ui.components.RoundMapButton
 import edu.ucdavis.saferide.ui.components.SectionHeader
 import edu.ucdavis.saferide.ui.components.SystemBarIcons
@@ -53,14 +52,14 @@ import edu.ucdavis.saferide.ui.theme.ArrivedGreen
 fun MainScreen(
     state: SafeRideUiState,
     onSelectTab: (MainTab) -> Unit,
-    onWhereTo: () -> Unit,
+    onRequestRide: () -> Unit,
     onExpandMap: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Box(Modifier.weight(1f)) {
             when (state.tab) {
-                MainTab.HOME -> HomeTab(state.campusStatus, onWhereTo, onExpandMap)
+                MainTab.HOME -> HomeTab(state.campusStatus, state.myLocation, onRequestRide, onExpandMap)
                 MainTab.SETTINGS -> SettingsTab(onSignOut)
             }
         }
@@ -91,22 +90,18 @@ fun MainScreen(
 }
 
 @Composable
-private fun HomeTab(status: CampusStatus?, onWhereTo: () -> Unit, onExpandMap: () -> Unit) {
+private fun HomeTab(status: CampusStatus?, myLocation: LatLng?, onRequestRide: () -> Unit, onExpandMap: () -> Unit) {
     SystemBarIcons(darkIcons = false)
     Column(Modifier.fillMaxSize()) {
-        // Header with the "Where to?" box.
-        Column(
+        Box(
             Modifier
                 .fillMaxWidth()
                 .background(AggieBlue)
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 20.dp),
+                .height(64.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
-                Text("UC Davis Safe Ride", color = Color.White, style = MaterialTheme.typography.titleLarge)
-            }
-            WhereToBox(onWhereTo)
+            Text("UC Davis Safe Ride", color = Color.White, style = MaterialTheme.typography.titleLarge)
         }
 
         LiveStatusBanner(status)
@@ -130,7 +125,7 @@ private fun HomeTab(status: CampusStatus?, onWhereTo: () -> Unit, onExpandMap: (
                 // Centered on campus so the live vans are readable; the gold service area surrounds it.
                 camera = MapCamera.Focus(LatLng(38.5440, -121.7480), 13.4),
                 vehicles = status?.vehicles.orEmpty(),
-                pins = listOf(MapPin("me", CampusLocations.simulatedCurrentLocation, PinKind.CURRENT)),
+                pins = listOfNotNull(myLocation?.let { MapPin("me", it, PinKind.CURRENT) }),
                 modifier = Modifier.fillMaxSize(),
             )
             RoundMapButton(
@@ -140,33 +135,15 @@ private fun HomeTab(status: CampusStatus?, onWhereTo: () -> Unit, onExpandMap: (
                 modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
             )
         }
-    }
-}
 
-@Composable
-private fun WhereToBox(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth().height(72.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 14.dp)) {
-            IconCircle(R.drawable.ic_pickup, size = 44.dp)
-            Spacer(Modifier.width(14.dp))
-            Text("Where to?", fontSize = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            // On-demand only: scheduling ("Now ▾") is a VIP Mobility feature outside this prototype.
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-            ) {
-                Icon(painterResource(R.drawable.ic_schedule), null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Now", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-            }
-        }
+        // The one way into booking: Request SafeRide → "Where to?".
+        PrimaryButton(
+            "Request SafeRide",
+            onClick = onRequestRide,
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(16.dp),
+        )
     }
 }
 

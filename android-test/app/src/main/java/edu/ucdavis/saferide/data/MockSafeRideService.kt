@@ -128,7 +128,7 @@ class MockSafeRideService(
     }
 
     override fun startSimulatedTrip(request: RideRequest): Flow<RideRequest> = flow {
-        val route = Route.streetPath(request.pickup.position, request.dropoff.position)
+        val route = Route.drive(request.pickup.position, request.dropoff.position)
         val van = request.assignedVehicle ?: assignedVan
         val step = maxOf(config.driveStepMeters, route.lengthMeters / config.tripTicks)
         var ride = request.copy(

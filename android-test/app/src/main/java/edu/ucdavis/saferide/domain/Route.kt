@@ -1,6 +1,7 @@
 package edu.ucdavis.saferide.domain
 
 import edu.ucdavis.saferide.data.LatLng
+import edu.ucdavis.saferide.data.RoadRoutes
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -50,8 +51,13 @@ class Route(val points: List<LatLng>) {
         fun streetPath(from: LatLng, to: LatLng): Route =
             Route(listOf(from, LatLng(from.latitude, to.longitude), to))
 
+        /** The stored road path between two points when there is one, otherwise [streetPath]. */
+        fun drive(from: LatLng, to: LatLng): Route =
+            RoadRoutes.between(from, to)?.let(::Route) ?: streetPath(from, to)
+
         /** The path the assigned van drives to the pickup point. */
         fun toPickup(vehicle: LatLng, pickup: LatLng): Route {
+            RoadRoutes.between(vehicle, pickup)?.let { return Route(it) }
             val start = if (Geo.distanceMeters(vehicle, pickup) >= MIN_APPROACH_METERS) {
                 vehicle
             } else {

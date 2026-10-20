@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import edu.ucdavis.saferide.R
 import edu.ucdavis.saferide.data.CampusLocations
 import edu.ucdavis.saferide.data.CampusStatus
+import edu.ucdavis.saferide.data.LatLng
 import edu.ucdavis.saferide.ui.components.RoundMapButton
 import edu.ucdavis.saferide.ui.components.SystemBarIcons
 import edu.ucdavis.saferide.ui.map.CampusMap
@@ -21,13 +22,13 @@ import edu.ucdavis.saferide.ui.map.PinKind
 
 /** The expanded service-area map. */
 @Composable
-fun FullMapScreen(status: CampusStatus?, onClose: () -> Unit) {
+fun FullMapScreen(status: CampusStatus?, myLocation: LatLng?, onClose: () -> Unit) {
     SystemBarIcons(darkIcons = !isSystemInDarkTheme())
     Box(Modifier.fillMaxSize()) {
         CampusMap(
             camera = MapCamera.Focus(CampusLocations.campusCenter, 13.8),
             vehicles = status?.vehicles.orEmpty(),
-            pins = listOf(MapPin("me", CampusLocations.simulatedCurrentLocation, PinKind.CURRENT)),
+            pins = listOfNotNull(myLocation?.let { MapPin("me", it, PinKind.CURRENT) }),
             modifier = Modifier.fillMaxSize(),
         )
         RoundMapButton(

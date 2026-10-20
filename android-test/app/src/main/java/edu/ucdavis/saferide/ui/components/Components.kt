@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -85,11 +89,15 @@ fun BlueHeader(
 /** White rounded input inside the blue header ("Type or select a destination"). */
 @Composable
 fun SearchField(
-    value: String,
-    onValueChange: (String) -> Unit,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
     placeholder: String,
     leading: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    /** The keyboard's Enter key. */
+    onDone: () -> Unit = {},
+    /** Applied to the text field itself, e.g. a focus requester. */
+    fieldModifier: Modifier = Modifier,
 ) {
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -100,7 +108,7 @@ fun SearchField(
             leading()
             Spacer(Modifier.width(14.dp))
             Box(Modifier.weight(1f)) {
-                if (value.isEmpty()) {
+                if (value.text.isEmpty()) {
                     Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 17.sp)
                 }
                 BasicTextField(
@@ -112,7 +120,9 @@ fun SearchField(
                         fontSize = 17.sp,
                     ),
                     cursorBrush = SolidColor(AggieBlue),
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { onDone() }),
+                    modifier = fieldModifier.fillMaxWidth(),
                 )
             }
         }

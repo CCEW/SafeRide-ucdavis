@@ -71,7 +71,10 @@ class TripRulesTest {
 
     @Test
     fun startLabel_currentLocationOrNearestPlace() {
-        assertEquals("Current Location", TripRules.startLabelFor(CampusLocations.simulatedCurrentLocation))
-        assertEquals("Near Shields Library", TripRules.startLabelFor(LatLng(38.53965, -121.74970)))
+        val gps = CampusLocations.simulatedCurrentLocation
+        assertEquals("Current Location", TripRules.startLabelFor(gps, current = gps))
+        assertEquals("Near Shields Library", TripRules.startLabelFor(LatLng(38.53965, -121.74970), current = gps))
+        // Without a GPS fix nothing counts as "Current Location".
+        assertEquals("Near Hart Hall", TripRules.startLabelFor(gps, current = null))
     }
 }
