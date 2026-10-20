@@ -11,7 +11,7 @@ This prototype focuses on one core loop and on fixing those two problems:
 | Problem in the current app | What this prototype does instead |
 |---|---|
 | Countdown timers that jump around | A **queue position** ("Position in Line: #3") with a pickup estimate that only ever goes down |
-| "Driver Arrived" before the van stops | The alert fires **only inside a strict 100 ft (30.48 m) radius** of the pickup spot, with vibration, the van's license plate and the exact stop |
+| "Driver Arrived" before the van stops | The alert fires **only inside a strict 100 ft (30.48 m) radius** of the pickup spot, with vibration and a clear **Driver Arrived** banner |
 | No idea where vans are before booking | **Live van locations** on the home map, a "3 Vans Active • Estimated Campus Wait: ~12 mins" banner, and the nearest van's ETA on the review screen |
 
 The layout follows screenshots of the current app: Welcome, Home, Where to?, Where are you?, How Many Passengers?, Review your trip, and Ride Not Available.
@@ -72,6 +72,14 @@ If Gradle can't find a JDK on the command line, point `JAVA_HOME` at Studio's bu
 
 The debug APK is written to `android-test/app/build/outputs/apk/debug/app-debug.apk`.
 
+### Set the emulator's location to Davis
+
+The emulator's default GPS position is in Mountain View, which is off campus, so **Current Location** would be declined. Move it to Shields Library before booking. In the emulator, open **⋯ → Location**, or run:
+
+```bash
+adb emu geo fix -121.74970 38.53965   # longitude first, then latitude
+```
+
 ---
 
 ## Core features
@@ -81,11 +89,12 @@ The whole loop takes about a minute. The rider is always **Alex (UC Davis Studen
 ### 1. Sign in and look before you book
 1. On the **Welcome** screen, tap **Get Started**.
 2. The sign-in screen is a simulated version of the UC Davis sign-in page. Tap **Sign In** (no password).
-3. **Home** shows the live banner **"3 Vans Active • Estimated Campus Wait: ~12 mins"**, the gold service area, and Vans **#1, #2 and #4** on the map. The blue dot is your (simulated) location.
+3. The app asks for location access. Tap **While using the app**.
+4. **Home** shows the live banner **"3 Vans Active • Estimated Campus Wait: ~12 mins"**, the gold service area, and Vans **#1, #2 and #4** on the map. The blue dot is your location.
 
 ### 2. Choose the trip
-1. Tap **Where to?** and pick **West Village**. Either type "West" or go to **Explore → Off Campus Housing**.
-2. On **Where are you?**, pick **Shields Library**, either by typing it or from **Explore → Campus Locations**. You can also tap **Current Location / Set on Map** and drag the map; the app finds the nearest campus stop and shows how far you'd walk.
+1. Tap **Request SafeRide** at the bottom of Home. On **Where to?**, pick **West Village**. Either type "West" or go to **Explore → Off Campus Housing**.
+2. **Where are you?** opens already filled in with **Current Location**, and the row below it shows the stop where the van will meet you. Press **Enter** to use it. To choose manually, type over it (e.g. "Shields" + Enter), pick from **Recent Places** or **Explore**, or tap **Set on Map** and drag the map; the app finds the nearest campus stop and shows how far you'd walk.
 3. Enter **1** passenger and tap the **→** button.
 4. **Review your trip** shows the pickup spot on the map, the trip timeline, and **"Nearest van: Van #… • ~… from your pickup spot"**. You can edit passengers or add a note for the driver here.
 
@@ -96,12 +105,12 @@ Tap **Continue**. Timings below are counted from that tap.
 |---|---|
 | ~0 s | **Calculating your place in line…** |
 | ~0.6 s | **You're #3 in line • Estimated pickup ~12 mins** |
-| ~2.6 s | Live tracking. Card: **"Request Received • Position in Line: #3"**. The map highlights the pickup spot with the gold 100 ft circle. |
-| ~7.6 s | **"Request Received • Position in Line: #2"**, and the estimate drops to ~8 mins |
-| ~12.6 s | **"Van #4 Assigned • Position in Line: #1 • Driver ~2 mins away"**. Van #4 starts driving its blue route toward you. |
+| ~2.6 s | Live tracking: **"You're #3 in line"**. The map highlights the pickup spot with the gold 100 ft circle. |
+| ~7.6 s | **"You're #2 in line"**, and the estimate drops to ~8 mins |
+| ~12.6 s | **"Van #4 is on the way"** with the driver's ETA and distance. Van #4 starts driving its blue route toward you. |
 
 ### 4. Proximity arrival alert
-- When Van #4 enters the **100 ft (30.48 m)** radius, which takes about 10 more seconds, the green **Driver Arrived** banner slides in: **"Van #4 is at the Shields Library Bus Turnaround"** with license plate **8UCD404**.
+- When Van #4 enters the **100 ft (30.48 m)** radius, which takes about 10 more seconds, the green **Driver Arrived** banner slides in and the phone vibrates.
 - The phone vibrates three times. The alert never fires early: the van slows down near the stop, and the alert waits until it's inside the circle.
 
 ### 5. Ride and reset
@@ -111,6 +120,25 @@ Tap **Continue**. Timings below are counted from that tap.
 ### Also try
 - **Ride Not Available:** pick **Sol at Parkside** (off campus) as the *pickup*. After **Continue** you get **"Ride Not Available… Rides must start on-campus."** **Go Back** returns to the review.
 - **Cancel:** while waiting in line, tap **Cancel Ride** or press Back. Confirming takes you Home.
+
+### Second scenario: Kemper Hall or Memorial Union → The U Apartments
+In these trips Van #4 drives real Davis streets instead of a straight L-shaped line.
+
+1. Set the emulator's location to one of these:
+   ```bash
+   adb emu geo fix -121.754908 38.536962   # Kemper Hall
+   adb emu geo fix -121.749752 38.543853   # Memorial Union
+   ```
+2. Tap **Request SafeRide** and pick **The U Apartments** (it's under Recent Places).
+3. On **Where are you?**, the row says **"Van meets you at Curb south of Kemper Hall"** or **"…at Memorial Union Bus Terminal"**. Press **Enter**, enter **1** passenger, and tap **Continue**. You can also type "Kemper" or "Memorial" instead of using GPS.
+4. Van #4 drives to you by road:
+   - **To Kemper Hall** (1.1 km): Mrak Hall Dr → Old Davis Rd → La Rue Rd → Bioletti Way.
+   - **To Memorial Union** (2.3 km): Old Davis Rd → 1st St → A St → Russell Blvd → Howard Way.
+5. After **I'm in the Van**, it drives to The U Apartments in East Davis:
+   - **From Kemper Hall** (5.0 km): La Rue Rd → Old Davis Rd → 1st St → 2nd St → Cantrill Dr.
+   - **From Memorial Union** (3.5 km): Howard Way → Russell Blvd → 5th St → Cantrill Dr.
+
+The paths are stored in [`RoadRoutes.kt`](android-test/app/src/main/java/edu/ucdavis/saferide/data/RoadRoutes.kt). They were generated once from OpenStreetMap with the public [OSRM](https://project-osrm.org/) router, so the app doesn't call any routing service. Every other trip still uses the L-shaped path.
 
 ---
 
@@ -165,11 +193,21 @@ android-test/app/src/main/java/edu/ucdavis/saferide/
 
 - **Simulated data:**
   - There's no real dispatch: Van #4 is always the one assigned.
-  - "Current Location" is a fixed spot on the Quad, since emulators have no real GPS fix.
-- **Approximate geography:** campus coordinates, the campus boundary and the service-area outline are hand-placed approximations.
+  - "Current Location" only comes from the device's GPS. If location access is denied or there's no fix, the app says so and you choose your pickup from the list or the map instead. The emulator's default GPS position is in Mountain View, which is off campus, so set it to Davis first (see [Set the emulator's location to Davis](#set-the-emulators-location-to-davis)).
+- **Approximate geography:** most campus coordinates, the campus boundary and the service-area outline are hand-placed approximations. Kemper Hall, the Memorial Union Terminal and The U Apartments come from OpenStreetMap.
+- **Road paths only for the second scenario:** other trips are drawn as an L-shaped line that can cut through buildings.
 - **Out of scope:** service hours aren't enforced, so rides are available at any time for demos, and "Now" is a label rather than a scheduling menu.
 - **Map:**
   - Tiles come from OpenStreetMap's public servers, which is fine for a class demo; a production app would need its own tile provider.
   - In dark mode, the map tiles are color-inverted rather than a purpose-made dark map style.
 - **Portrait only:** the app is locked to portrait, like the current Safe Ride app.
 - **Emulator keyboard:** the passengers field asks for the number keyboard, but some emulator keyboards still show letters.
+
+
+### Commands to run
+ADB=/mnt/c/Users/CAMILA/AppData/Local/Android/Sdk/platform-tools/adb.exe
+cmd.exe /c '.\gradlew.bat' assembleDebug --console=plain 2>&1 | grep -E "^e: |FAILED|BUILD"
+$ADB install -r app/build/outputs/apk/debug/app-debug.apk
+$ADB emu geo fix -121.754908 38.536962        # Kemper Hall (use -121.749752 38.543853 for Memorial Union)
+$ADB shell am force-stop edu.ucdavis.saferide
+$ADB shell am start -n edu.ucdavis.saferide/.MainActivity
